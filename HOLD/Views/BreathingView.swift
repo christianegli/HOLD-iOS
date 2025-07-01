@@ -20,13 +20,11 @@ struct BreathingView: View {
         case hold1 = "Hold Full"
         case exhale = "Exhale"
         case hold2 = "Hold Empty"
-        case complete = "Complete"
         
         var duration: TimeInterval {
             switch self {
             case .ready: return 3.0
             case .inhale, .hold1, .exhale, .hold2: return 4.0
-            case .complete: return 2.0
             }
         }
         
@@ -37,7 +35,6 @@ struct BreathingView: View {
             case .hold1: return "Hold your breath"
             case .exhale: return "Breathe out slowly and completely"
             case .hold2: return "Hold empty"
-            case .complete: return "Round complete"
             }
         }
         
@@ -48,7 +45,6 @@ struct BreathingView: View {
             case .hold1: return .holdAccent
             case .exhale: return .holdSecondary
             case .hold2: return .holdWarning
-            case .complete: return .holdPrimary
             }
         }
         
@@ -59,7 +55,6 @@ struct BreathingView: View {
             case .hold1: return 1.6
             case .exhale: return 0.8
             case .hold2: return 0.8
-            case .complete: return 1.0
             }
         }
         
@@ -70,7 +65,6 @@ struct BreathingView: View {
             case .hold1: return "Hold your breath for 4 seconds"
             case .exhale: return "Now exhaling for 4 seconds"
             case .hold2: return "Hold empty for 4 seconds"
-            case .complete: return "Round complete"
             }
         }
     }
@@ -567,10 +561,6 @@ struct BreathingView: View {
                 completeBreathing()
                 return
             }
-            
-        case .complete:
-            // Legacy case kept for safety but no longer used
-            break
         }
         
         // Update circle scale and reset timer
