@@ -293,24 +293,3 @@ class CoreDataManager: ObservableObject {
         NotificationCenter.default.removeObserver(self)
     }
 }
-
-// MARK: - Session Data Extensions
-
-extension SessionData {
-    var isValid: Bool {
-        return holdDuration >= 0 && 
-               preparationRounds >= 0 && 
-               !protocolType.isEmpty &&
-               startedAt <= Date()
-    }
-    
-    var qualityScore: Double {
-        switch holdDuration {
-        case 0..<15: return 0.2
-        case 15..<30: return 0.4
-        case 30..<60: return 0.6
-        case 60..<120: return 0.8
-        default: return 1.0
-        }
-    }
-} 

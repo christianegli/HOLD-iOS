@@ -289,8 +289,11 @@ struct HoldView: View {
         backgroundColorIntensity = 0.0
         
         // Load personal best from progress
-        progressViewModel.loadProgress()
-        personalBest = progressViewModel.personalBest
+        Task {
+            await progressViewModel.loadProgress()
+            // Capture updated personal best on main thread
+            personalBest = progressViewModel.personalBest
+        }
         
         // Initial accessibility announcement
         let announcement = personalBest > 0 

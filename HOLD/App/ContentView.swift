@@ -220,17 +220,7 @@ class NavigationViewModel: ObservableObject {
     }
 }
 
-// MARK: - Enhanced Session Data Model
-
-struct SessionData {
-    var startedAt: Date = Date()
-    var completedAt: Date?
-    var holdDuration: TimeInterval = 0
-    var preparationRounds: Int = 4
-    var protocolType: String = "Box Breathing"
-    var isPersonalBest: Bool = false
-    var improvementPercentage: Double = 0.0
-}
+// MARK: - Session Data Model (defined in Models/Session.swift)
 
 // MARK: - Design System Extensions
 
@@ -264,6 +254,56 @@ extension Font {
     static let holdBody = Font.system(size: 16, weight: .regular, design: .default)
     static let holdCaption = Font.system(size: 14, weight: .medium, design: .default)
     static let holdMono = Font.system(size: 18, weight: .medium, design: .monospaced)
+}
+
+extension ShapeStyle where Self == Color {
+    static var holdPrimary: Color { Color.holdPrimary }
+    static var holdSecondary: Color { Color.holdSecondary }
+    static var holdAccent: Color { Color.holdAccent }
+    static var holdSuccess: Color { Color.holdSuccess }
+    static var holdWarning: Color { Color.holdWarning }
+    static var holdError: Color { Color.holdError }
+    static var holdBackground: Color { Color.holdBackground }
+    static var holdSurface: Color { Color.holdSurface }
+    static var holdCard: Color { Color.holdCard }
+    static var holdTextPrimary: Color { Color.holdTextPrimary }
+    static var holdTextSecondary: Color { Color.holdTextSecondary }
+    static var holdTextTertiary: Color { Color.holdTextTertiary }
+}
+
+// MARK: - Temporary inline EducationView placeholder (until project file is updated)
+struct EducationView: View {
+    @EnvironmentObject var navigationViewModel: NavigationViewModel
+    var body: some View {
+        VStack(spacing: 40) {
+            Spacer()
+            Text("Breath Hold Training")
+                .font(.title)
+                .fontWeight(.bold)
+                .foregroundColor(.holdTextPrimary)
+            Text("Learn safe techniques before starting")
+                .font(.body)
+                .foregroundColor(.holdTextSecondary)
+                .multilineTextAlignment(.center)
+                .padding()
+            Button(action: {
+                navigationViewModel.navigateToBreathing()
+            }) {
+                Text("Start Training")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.holdPrimary)
+                    .cornerRadius(12)
+            }
+            .padding(.horizontal, 40)
+            Spacer()
+        }
+        .padding()
+        .background(Color.holdBackground)
+        .edgesIgnoringSafeArea(.all)
+    }
 }
 
 #Preview {

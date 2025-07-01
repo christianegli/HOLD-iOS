@@ -17,9 +17,9 @@ struct BreathingView: View {
     enum BreathingPhase: String, CaseIterable {
         case ready = "Ready"
         case inhale = "Inhale"
-        case hold1 = "Hold"
+        case hold1 = "Hold Full"
         case exhale = "Exhale"
-        case hold2 = "Hold"
+        case hold2 = "Hold Empty"
         case complete = "Complete"
         
         var duration: TimeInterval {
@@ -178,7 +178,7 @@ struct BreathingView: View {
                     instructionStep(phase: "Hold", duration: "4 seconds", description: "Hold empty", color: .holdWarning)
                 }
                 .padding()
-                .background(.holdCard.opacity(0.6))
+                .background(Color.holdCard.opacity(0.6))
                 .cornerRadius(16)
                 
                 Text("You'll complete 4 rounds to prepare for the breath hold")
@@ -556,20 +556,21 @@ struct BreathingView: View {
             currentPhase = .hold2
             
         case .hold2:
-            currentPhase = .complete
-            
-        case .complete:
             if currentRound < totalRounds {
+                // Move directly to the next round (skip the old "complete" pause)
                 currentRound += 1
                 currentPhase = .inhale
-                
                 // Accessibility announcement for new round
                 UIAccessibility.post(notification: .announcement, argument: "Round \(currentRound) of \(totalRounds) starting")
             } else {
-                // All rounds complete
+                // All rounds complete – immediately proceed to breath hold
                 completeBreathing()
                 return
             }
+            
+        case .complete:
+            // Legacy case kept for safety but no longer used
+            break
         }
         
         // Update circle scale and reset timer

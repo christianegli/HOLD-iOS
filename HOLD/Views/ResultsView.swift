@@ -211,7 +211,7 @@ struct ResultsView: View {
             }
         }
         .padding(20)
-        .background(.holdCard.opacity(0.6))
+        .background(Color.holdCard.opacity(0.6))
         .cornerRadius(16)
     }
     
@@ -229,7 +229,7 @@ struct ResultsView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
-        .background(.holdSurface.opacity(0.5))
+        .background(Color.holdSurface.opacity(0.5))
         .cornerRadius(12)
     }
     
@@ -275,7 +275,7 @@ struct ResultsView: View {
             }
         }
         .padding(20)
-        .background(.holdCard.opacity(0.4))
+        .background(Color.holdCard.opacity(0.4))
         .cornerRadius(16)
         .opacity(animateIn ? 1 : 0)
         .animation(.easeInOut(duration: 0.8).delay(1.2), value: animateIn)
@@ -287,7 +287,7 @@ struct ResultsView: View {
                 .font(.title2)
                 .foregroundColor(earned ? .holdAccent : .holdTextTertiary)
                 .frame(width: 40, height: 40)
-                .background(earned ? .holdAccent.opacity(0.2) : .holdSurface.opacity(0.3))
+                .background(earned ? Color.holdAccent.opacity(0.2) : Color.holdSurface.opacity(0.3))
                 .clipShape(Circle())
             
             Text(title)
@@ -302,7 +302,7 @@ struct ResultsView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(earned ? .holdSurface.opacity(0.6) : .holdSurface.opacity(0.3))
+        .background(earned ? Color.holdSurface.opacity(0.6) : Color.holdSurface.opacity(0.3))
         .cornerRadius(12)
         .saturation(earned ? 1.0 : 0.5)
     }
@@ -326,7 +326,7 @@ struct ResultsView: View {
             }
         }
         .padding(20)
-        .background(.holdSuccess.opacity(0.1))
+        .background(Color.holdSuccess.opacity(0.1))
         .cornerRadius(16)
     }
     
@@ -370,7 +370,7 @@ struct ResultsView: View {
             }
         }
         .padding(20)
-        .background(.holdCard.opacity(0.3))
+        .background(Color.holdCard.opacity(0.3))
         .cornerRadius(16)
         .opacity(animateIn ? 1 : 0)
         .animation(.easeInOut(duration: 0.8).delay(2.2), value: animateIn)
@@ -434,7 +434,7 @@ struct ResultsView: View {
                     .foregroundColor(.holdTextSecondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(.holdSurface.opacity(0.6))
+                    .background(Color.holdSurface.opacity(0.6))
                     .cornerRadius(12)
                 }
                 
@@ -449,7 +449,7 @@ struct ResultsView: View {
                     .foregroundColor(.holdTextSecondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(.holdSurface.opacity(0.6))
+                    .background(Color.holdSurface.opacity(0.6))
                     .cornerRadius(12)
                 }
             }
@@ -486,11 +486,13 @@ struct ResultsView: View {
     
     private func saveSession() {
         // Save session data
-        progressViewModel.addSession(
-            duration: holdDuration,
-            date: Date(),
-            protocolType: "Box Breathing"
-        )
+        Task {
+            await progressViewModel.addSession(
+                duration: holdDuration,
+                date: Date(),
+                protocolType: "Box Breathing"
+            )
+        }
         
         // Update navigation session data
         navigationViewModel.sessionData?.isPersonalBest = isPersonalBest

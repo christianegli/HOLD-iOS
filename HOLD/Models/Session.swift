@@ -28,295 +28,101 @@ struct SessionData: Codable, Identifiable, Hashable {
     var formattedHoldDuration: String {
         let minutes = Int(holdDuration) / 60
         let seconds = Int(holdDuration) % 60
-        let milliseconds = Int((holdDuration.truncatingRemainder(dividingBy: 1)) * 10)
         
         if minutes > 0 {
-            return String(format: "%d:%02d.%d", minutes, seconds, milliseconds)
+            return String(format: "%d:%02d", minutes, seconds)
         } else {
-            return String(format: "%d.%ds", seconds, milliseconds)
+            return String(format: "%ds", seconds)
         }
+    }
+    
+    var formattedStartTime: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: startedAt)
     }
     
     var formattedDate: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
-        formatter.timeStyle = .short
         return formatter.string(from: startedAt)
     }
     
-    var formattedDateShort: String {
-        let formatter = DateFormatter()
-        if Calendar.current.isDateInToday(startedAt) {
-            formatter.dateFormat = "HH:mm"
-        } else if Calendar.current.isDateInYesterday(startedAt) {
-            return "Yesterday"
-        } else if Calendar.current.isDate(startedAt, equalTo: Date(), toGranularity: .weekOfYear) {
-            formatter.dateFormat = "EEEE"
-        } else {
-            formatter.dateFormat = "MMM d"
-        }
-        return formatter.string(from: startedAt)
-    }
+    // MARK: - Quality and Validation
     
     var qualityScore: Double {
-        switch holdDuration {
-        case 0..<15: return 0.2      // Poor
-        case 15..<30: return 0.4     // Below Average
-        case 30..<60: return 0.6     // Average
-        case 60..<120: return 0.8    // Good
-        default: return 1.0         // Excellent
-        }
+        guard holdDuration > 0 else { return 0.0 }
+        
+        // Base score from duration (0-70 points)
+        let durationScore = min(holdDuration / 120.0, 1.0) * 70.0
+        
+        // Consistency bonus (0-20 points)
+        let consistencyScore = preparationRounds >= 4 ? 20.0 : Double(preparationRounds) * 5.0
+        
+        // Completion bonus (0-10 points)
+        let completionScore = isCompleted ? 10.0 : 0.0
+        
+        return durationScore + consistencyScore + completionScore
     }
     
-    var qualityLevel: QualityLevel {
-        switch qualityScore {
-        case 0.8...1.0: return .excellent
-        case 0.6..<0.8: return .good
-        case 0.4..<0.6: return .average
-        case 0.2..<0.4: return .belowAverage
-        default: return .poor
+    var qualityLevel: String {
+        let score = qualityScore
+        switch score {
+        case 80...100: return "Excellent"
+        case 60...79: return "Good"
+        case 40...59: return "Fair"
+        case 20...39: return "Needs Improvement"
+        default: return "Poor"
         }
     }
     
     var isValid: Bool {
-        return holdDuration >= 0 && 
-               preparationRounds >= 0 && 
-               !protocolType.isEmpty &&
-               startedAt <= Date() &&
-               id != UUID(uuidString: "00000000-0000-0000-0000-000000000000")
+        return holdDuration > 0 && preparationRounds > 0 && !protocolType.isEmpty
     }
     
-    // MARK: - Quality Level Enum
+    // MARK: - Session Analysis
     
-    enum QualityLevel: String, CaseIterable {
-        case poor = "Poor"
-        case belowAverage = "Below Average"
-        case average = "Average"
-        case good = "Good"
-        case excellent = "Excellent"
+    func comparedTo(_ otherSession: SessionData) -> String {
+        guard otherSession.isValid else { return "First session" }
         
-        var color: String {
-            switch self {
-            case .poor: return "holdError"
-            case .belowAverage: return "holdWarning"
-            case .average: return "holdSecondary"
-            case .good: return "holdPrimary"
-            case .excellent: return "holdSuccess"
-            }
-        }
+        let timeDiff = holdDuration - otherSession.holdDuration
+        let percentChange = (timeDiff / otherSession.holdDuration) * 100
         
-        var icon: String {
-            switch self {
-            case .poor: return "😔"
-            case .belowAverage: return "😐"
-            case .average: return "🙂"
-            case .good: return "😊"
-            case .excellent: return "🌟"
-            }
-        }
-        
-        var description: String {
-            switch self {
-            case .poor: return "Keep practicing! Every session builds strength."
-            case .belowAverage: return "You're improving! Stay consistent."
-            case .average: return "Good progress! Keep building your practice."
-            case .good: return "Great work! You're developing strong breath control."
-            case .excellent: return "Outstanding! You've achieved excellent breath mastery."
-            }
+        if abs(percentChange) < 5 {
+            return "Similar performance"
+        } else if percentChange > 0 {
+            return String(format: "+%.1f%% improvement", percentChange)
+        } else {
+            return String(format: "%.1f%% decrease", abs(percentChange))
         }
     }
     
-    // MARK: - Initializers
-    
-    init(
-        id: UUID = UUID(),
-        startedAt: Date = Date(),
-        completedAt: Date? = nil,
-        holdDuration: TimeInterval = 0,
-        preparationRounds: Int = 4,
-        protocolType: String = "Box Breathing",
-        isPersonalBest: Bool = false,
-        improvementPercentage: Double = 0
-    ) {
-        self.id = id
-        self.startedAt = startedAt
-        self.completedAt = completedAt
-        self.holdDuration = holdDuration
-        self.preparationRounds = preparationRounds
-        self.protocolType = protocolType
-        self.isPersonalBest = isPersonalBest
-        self.improvementPercentage = improvementPercentage
+    var performanceCategory: String {
+        switch holdDuration {
+        case 0...15: return "Beginner"
+        case 16...30: return "Novice"
+        case 31...60: return "Intermediate"
+        case 61...120: return "Advanced"
+        default: return "Expert"
+        }
     }
     
-    // MARK: - Validation and Safety
+    // MARK: - Data Sanitization
     
     mutating func sanitize() {
-        // Ensure valid ID
-        if id == UUID(uuidString: "00000000-0000-0000-0000-000000000000") {
-            id = UUID()
-        }
+        // Ensure reasonable bounds
+        holdDuration = max(0, min(600, holdDuration)) // 0-10 minutes max
+        preparationRounds = max(1, min(10, preparationRounds))
         
-        // Ensure valid dates
-        if startedAt > Date() {
-            startedAt = Date()
-        }
-        
-        if let completedAt = completedAt, completedAt < startedAt {
-            self.completedAt = startedAt
-        }
-        
-        // Ensure valid duration (no negative values)
-        if holdDuration < 0 {
-            holdDuration = 0
-        }
-        
-        // Cap duration at reasonable maximum (10 minutes)
-        if holdDuration > 600 {
-            holdDuration = 600
-        }
-        
-        // Ensure valid preparation rounds
-        if preparationRounds < 0 {
-            preparationRounds = 4
-        }
-        
-        if preparationRounds > 10 {
-            preparationRounds = 10
-        }
-        
-        // Ensure valid protocol type
+        // Clean up string fields
+        protocolType = protocolType.trimmingCharacters(in: .whitespacesAndNewlines)
         if protocolType.isEmpty {
             protocolType = "Box Breathing"
         }
         
-        // Validate improvement percentage
-        if improvementPercentage.isNaN || improvementPercentage.isInfinite {
-            improvementPercentage = 0
-        }
-        
-        // Cap improvement percentage at reasonable values
-        if improvementPercentage > 1000 {
-            improvementPercentage = 1000
-        }
-        
-        if improvementPercentage < -100 {
-            improvementPercentage = -100
-        }
-    }
-    
-    // MARK: - Comparison Helpers
-    
-    func compare(to other: SessionData) -> ComparisonResult {
-        let improvement = holdDuration - other.holdDuration
-        let improvementPercentage = other.holdDuration > 0 ? (improvement / other.holdDuration) * 100 : 0
-        
-        return ComparisonResult(
-            improvementSeconds: improvement,
-            improvementPercentage: improvementPercentage,
-            isImprovement: improvement > 0,
-            isSignificantImprovement: improvementPercentage > 10
-        )
-    }
-    
-    struct ComparisonResult {
-        let improvementSeconds: TimeInterval
-        let improvementPercentage: Double
-        let isImprovement: Bool
-        let isSignificantImprovement: Bool
-        
-        var formattedImprovement: String {
-            let sign = improvementSeconds >= 0 ? "+" : ""
-            return "\(sign)\(String(format: "%.1fs", improvementSeconds))"
-        }
-        
-        var formattedImprovementPercentage: String {
-            let sign = improvementPercentage >= 0 ? "+" : ""
-            return "\(sign)\(String(format: "%.1f%%", improvementPercentage))"
-        }
-    }
-    
-    // MARK: - Static Factory Methods
-    
-    static func createTestSession(
-        duration: TimeInterval,
-        daysAgo: Int = 0,
-        protocolType: String = "Box Breathing"
-    ) -> SessionData {
-        let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date()) ?? Date()
-        
-        return SessionData(
-            startedAt: date,
-            completedAt: date,
-            holdDuration: duration,
-            protocolType: protocolType
-        )
-    }
-    
-    // MARK: - Hashable and Equatable
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-    
-    static func == (lhs: SessionData, rhs: SessionData) -> Bool {
-        return lhs.id == rhs.id
-    }
-}
-
-// MARK: - Collection Extensions
-
-extension Array where Element == SessionData {
-    var personalBest: TimeInterval {
-        return self.map(\.holdDuration).max() ?? 0
-    }
-    
-    var averageDuration: TimeInterval {
-        guard !isEmpty else { return 0 }
-        return self.map(\.holdDuration).reduce(0, +) / Double(count)
-    }
-    
-    var totalDuration: TimeInterval {
-        return self.map(\.holdDuration).reduce(0, +)
-    }
-    
-    func sessionsForDate(_ date: Date) -> [SessionData] {
-        let calendar = Calendar.current
-        return self.filter { session in
-            calendar.isDate(session.startedAt, inSameDayAs: date)
-        }
-    }
-    
-    func sessionsThisWeek() -> [SessionData] {
-        let calendar = Calendar.current
-        let now = Date()
-        return self.filter { session in
-            calendar.isDate(session.startedAt, equalTo: now, toGranularity: .weekOfYear)
-        }
-    }
-    
-    func sessionsThisMonth() -> [SessionData] {
-        let calendar = Calendar.current
-        let now = Date()
-        return self.filter { session in
-            calendar.isDate(session.startedAt, equalTo: now, toGranularity: .month)
-        }
-    }
-    
-    func recentSessions(count: Int = 10) -> [SessionData] {
-        return Array(self.prefix(count))
-    }
-    
-    var qualityDistribution: (excellent: Int, good: Int, average: Int, belowAverage: Int, poor: Int) {
-        return self.reduce((excellent: 0, good: 0, average: 0, belowAverage: 0, poor: 0)) { result, session in
-            var updated = result
-            switch session.qualityLevel {
-            case .excellent: updated.excellent += 1
-            case .good: updated.good += 1
-            case .average: updated.average += 1
-            case .belowAverage: updated.belowAverage += 1
-            case .poor: updated.poor += 1
-            }
-            return updated
+        // Ensure date consistency
+        if let completed = completedAt, completed < startedAt {
+            completedAt = nil
         }
     }
 } 
