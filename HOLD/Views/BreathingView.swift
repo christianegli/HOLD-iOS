@@ -13,6 +13,8 @@ struct BreathingView: View {
     @State private var breathingGlow: Double = 0.0
     @State private var phaseProgress: Double = 0.0
     @State private var showInstructions = true
+    @State private var showFinalBreath = false
+    @State private var finalBreathStage = 0 // 0: exhale, 1: belly, 2: ribs, 3: chest, 4: complete
     
     enum BreathingPhase: String, CaseIterable {
         case ready = "Ready"
@@ -76,6 +78,13 @@ struct BreathingView: View {
                 instructionsOverlay
                     .transition(.opacity.combined(with: .scale))
                     .zIndex(1)
+            }
+            
+            // Final breath guidance overlay
+            if showFinalBreath {
+                finalBreathOverlay
+                    .transition(.opacity.combined(with: .scale))
+                    .zIndex(2)
             }
             
             // Main breathing interface
@@ -472,6 +481,128 @@ struct BreathingView: View {
         }
     }
     
+    // MARK: - Final Breath Overlay
+    
+    private var finalBreathOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.9)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 32) {
+                Text("Final Breath")
+                    .font(.holdTitle)
+                    .fontWeight(.bold)
+                    .foregroundColor(.holdTextPrimary)
+                    .multilineTextAlignment(.center)
+                
+                // Breathing circle for final breath
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [finalBreathColor.opacity(0.3), finalBreathColor]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 200, height: 200)
+                    .scaleEffect(finalBreathScale)
+                    .overlay(
+                        Circle()
+                            .stroke(finalBreathColor, lineWidth: 3)
+                            .scaleEffect(finalBreathScale)
+                    )
+                    .shadow(color: finalBreathColor.opacity(0.5), radius: 20)
+                
+                VStack(spacing: 16) {
+                    Text(finalBreathInstruction)
+                        .font(.holdHeading)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.holdTextPrimary)
+                        .multilineTextAlignment(.center)
+                        .frame(height: 60)
+                    
+                    Text(finalBreathDescription)
+                        .font(.holdBody)
+                        .foregroundColor(.holdTextSecondary)
+                        .multilineTextAlignment(.center)
+                        .frame(height: 40)
+                }
+                
+                if finalBreathStage < 4 {
+                    Button(action: advanceFinalBreathStage) {
+                        Text(finalBreathButtonText)
+                            .font(.holdHeading)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.holdTextPrimary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(finalBreathColor.opacity(0.8))
+                            .cornerRadius(16)
+                    }
+                    .accessibilityLabel(finalBreathButtonText)
+                    .accessibilityHint("Advance to next stage of final breath")
+                }
+            }
+            .padding(.horizontal, 32)
+        }
+    }
+    
+    // MARK: - Final Breath Computed Properties
+    
+    private var finalBreathInstruction: String {
+        switch finalBreathStage {
+        case 0: return "First, exhale completely"
+        case 1: return "Fill your belly"
+        case 2: return "Expand your ribs"
+        case 3: return "Fill your chest"
+        case 4: return "Hold complete - Starting breath hold"
+        default: return ""
+        }
+    }
+    
+    private var finalBreathDescription: String {
+        switch finalBreathStage {
+        case 0: return "Empty your lungs of stale air"
+        case 1: return "Breathe deep into your lower lungs"
+        case 2: return "Expand your rib cage outward"
+        case 3: return "Fill your upper chest and collarbones"
+        case 4: return "Beginning your breath hold now..."
+        default: return ""
+        }
+    }
+    
+    private var finalBreathButtonText: String {
+        switch finalBreathStage {
+        case 0: return "Exhaled"
+        case 1: return "Belly Full"
+        case 2: return "Ribs Expanded"
+        case 3: return "Chest Full - Start Hold"
+        default: return ""
+        }
+    }
+    
+    private var finalBreathColor: Color {
+        switch finalBreathStage {
+        case 0: return .holdSecondary
+        case 1: return .holdSuccess
+        case 2: return .holdAccent
+        case 3: return .holdPrimary
+        case 4: return .holdPrimary
+        default: return .holdTextSecondary
+        }
+    }
+    
+    private var finalBreathScale: CGFloat {
+        switch finalBreathStage {
+        case 0: return 0.6
+        case 1: return 1.0
+        case 2: return 1.3
+        case 3: return 1.6
+        case 4: return 1.6
+        default: return 1.0
+        }
+    }
+    
     // MARK: - Breathing Exercise Logic
     
     private func setupBreathingExercise() {
@@ -583,12 +714,12 @@ struct BreathingView: View {
         let notificationFeedback = UINotificationFeedbackGenerator()
         notificationFeedback.notificationOccurred(.success)
         
-        // Final accessibility announcement
-        UIAccessibility.post(notification: .announcement, argument: "Breathing preparation complete. Ready for breath hold.")
+        // Show final breath guidance instead of immediate navigation
+        UIAccessibility.post(notification: .announcement, argument: "Breathing preparation complete. Now take your final breath.")
         
-        // Navigate to hold view after brief delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            navigationViewModel.navigateToHold()
+        withAnimation(.easeInOut(duration: 0.5)) {
+            showFinalBreath = true
+            finalBreathStage = 0
         }
     }
     
@@ -627,5 +758,39 @@ struct BreathingView: View {
         timer = nil
         isActive = false
         isPaused = false
+    }
+    
+    private func advanceFinalBreathStage() {
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
+        finalBreathStage += 1
+        
+        // Animate circle scale change
+        withAnimation(.easeInOut(duration: 0.8)) {
+            // Scale animation happens via computed property
+        }
+        
+        // Accessibility announcements
+        let announcement = finalBreathInstruction + ". " + finalBreathDescription
+        UIAccessibility.post(notification: .announcement, argument: announcement)
+        
+        // If we've completed all stages, start the hold
+        if finalBreathStage >= 4 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                startBreathHold()
+            }
+        }
+    }
+    
+    private func startBreathHold() {
+        withAnimation(.easeOut(duration: 0.5)) {
+            showFinalBreath = false
+        }
+        
+        // Navigate to hold view
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            navigationViewModel.navigateToHold()
+        }
     }
 }
