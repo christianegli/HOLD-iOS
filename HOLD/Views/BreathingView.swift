@@ -14,7 +14,7 @@ struct BreathingView: View {
     @State private var phaseProgress: Double = 0.0
     @State private var showInstructions = true
     @State private var showFinalBreath = false
-    @State private var finalBreathStage = 0 // 0: exhale, 1: belly, 2: ribs, 3: chest, 4: complete
+    @State private var finalBreathStage = 0 // 0: belly, 1: ribs, 2: chest, 3: hold starting
     @State private var finalBreathTimer: Timer?
     
     enum BreathingPhase: String, CaseIterable {
@@ -545,22 +545,20 @@ struct BreathingView: View {
     
     private var finalBreathInstruction: String {
         switch finalBreathStage {
-        case 0: return "First, exhale completely"
-        case 1: return "Fill your belly"
-        case 2: return "Expand your ribs"
-        case 3: return "Fill your chest"
-        case 4: return "Hold complete - Starting breath hold"
+        case 0: return "Fill your belly"
+        case 1: return "Expand your ribs"
+        case 2: return "Fill your chest"
+        case 3: return "Hold your breath"
         default: return ""
         }
     }
     
     private var finalBreathDescription: String {
         switch finalBreathStage {
-        case 0: return "Empty your lungs of stale air"
-        case 1: return "Breathe deep into your lower lungs"
-        case 2: return "Expand your rib cage outward"
-        case 3: return "Fill your upper chest and collarbones"
-        case 4: return "Beginning your breath hold now..."
+        case 0: return "Breathe deep into your lower lungs"
+        case 1: return "Expand your rib cage outward"
+        case 2: return "Fill your upper chest and collarbones"
+        case 3: return "Breath hold has begun"
         default: return ""
         }
     }
@@ -569,23 +567,21 @@ struct BreathingView: View {
     
     private var finalBreathColor: Color {
         switch finalBreathStage {
-        case 0: return .holdSecondary
-        case 1: return .holdSuccess
-        case 2: return .holdAccent
+        case 0: return .holdSuccess
+        case 1: return .holdAccent
+        case 2: return .holdPrimary
         case 3: return .holdPrimary
-        case 4: return .holdPrimary
         default: return .holdTextSecondary
         }
     }
     
     private var finalBreathScale: CGFloat {
         switch finalBreathStage {
-        case 0: return 0.6
-        case 1: return 1.0
-        case 2: return 1.3
-        case 3: return 1.6
-        case 4: return 1.6
-        default: return 1.0
+        case 0: return 0.8  // Start smaller
+        case 1: return 1.2
+        case 2: return 1.6
+        case 3: return 1.6  // Hold at full size
+        default: return 0.8
         }
     }
     
@@ -752,8 +748,8 @@ struct BreathingView: View {
     }
     
     private func startFinalBreathSequence() {
-        // Stage durations: exhale(3s), belly(4s), ribs(3s), chest(3s), complete(2s)
-        let stageDurations: [TimeInterval] = [3.0, 4.0, 3.0, 3.0, 2.0]
+        // Stage durations: belly(4s), ribs(3s), chest(3s), transition to hold(1s)
+        let stageDurations: [TimeInterval] = [4.0, 3.0, 3.0, 1.0]
         
         finalBreathTimer?.invalidate()
         finalBreathTimer = Timer.scheduledTimer(withTimeInterval: stageDurations[0], repeats: false) { _ in
@@ -776,30 +772,28 @@ struct BreathingView: View {
         let announcement = finalBreathInstruction + ". " + finalBreathDescription
         UIAccessibility.post(notification: .announcement, argument: announcement)
         
-        // Schedule next stage or complete the sequence
-        if finalBreathStage < 4 {
-            let stageDurations: [TimeInterval] = [3.0, 4.0, 3.0, 3.0, 2.0]
+        // Schedule next stage or transition to hold
+        if finalBreathStage < 3 {
+            let stageDurations: [TimeInterval] = [4.0, 3.0, 3.0, 1.0]
             finalBreathTimer?.invalidate()
             finalBreathTimer = Timer.scheduledTimer(withTimeInterval: stageDurations[finalBreathStage], repeats: false) { _ in
                 self.advanceFinalBreathStage()
             }
         } else {
-            // Final stage - start breath hold
+            // Final stage - transition directly to hold view with timer
             finalBreathTimer?.invalidate()
-            finalBreathTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { _ in
-                self.startBreathHold()
+            finalBreathTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { _ in
+                self.transitionToHoldView()
             }
         }
     }
     
-    private func startBreathHold() {
-        withAnimation(.easeOut(duration: 0.5)) {
-            showFinalBreath = false
-        }
+    private func transitionToHoldView() {
+        // Clean up timers
+        finalBreathTimer?.invalidate()
+        finalBreathTimer = nil
         
-        // Navigate to hold view
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            navigationViewModel.navigateToHold()
-        }
+        // Navigate directly to hold view - no animation delay
+        navigationViewModel.navigateToHold()
     }
 }

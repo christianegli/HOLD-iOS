@@ -41,18 +41,18 @@ struct HoldView: View {
                     
                     if !isHolding {
                         VStack(spacing: 8) {
-                            Text("Take a deep breath and hold")
+                            Text("Hold starting...")
                                 .font(.title3)
                                 .foregroundColor(.secondary)
                                 .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
-                                .accessibilityLabel("Take a deep breath and hold")
+                                .accessibilityLabel("Breath hold starting")
                             
                             if personalBest > 0 {
-                                Text("Personal Best: \(String(format: "%.1fs", personalBest))")
+                                Text("Beat: \(String(format: "%.1fs", personalBest))")
                                     .font(.headline)
                                     .foregroundColor(.yellow)
                                     .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
-                                    .accessibilityLabel("Your personal best is \(String(format: "%.1f seconds", personalBest))")
+                                    .accessibilityLabel("Goal: beat \(String(format: "%.1f seconds", personalBest))")
                             }
                         }
                     } else {
@@ -155,33 +155,7 @@ struct HoldView: View {
                 // Control Buttons with Enhanced Accessibility
                 VStack(spacing: 20) {
                     if !isHolding {
-                        Button(action: startHolding) {
-                            HStack {
-                                Image(systemName: "lungs.fill")
-                                    .font(.title2)
-                                    .accessibilityHidden(true)
-                                Text("START HOLD")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 40)
-                            .padding(.vertical, 20)
-                            .background(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [.green, .mint]),
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .cornerRadius(30)
-                        }
-                        .accessibilityLabel("Start breath hold")
-                        .accessibilityHint("Begin holding your breath and start the timer")
-                        .accessibilityAddTraits(.isButton)
-                        
-                        // Safety information for accessibility
+                        // Auto-starting - show safety info only
                         VStack(spacing: 4) {
                             Text("⚠️ Safety First")
                                 .font(.caption)
@@ -295,13 +269,9 @@ struct HoldView: View {
             personalBest = progressViewModel.personalBest
         }
         
-        // Initial accessibility announcement
-        let announcement = personalBest > 0 
-            ? "Ready to start breath hold. Your personal best is \(String(format: "%.1f seconds", personalBest))"
-            : "Ready to start your first breath hold"
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            UIAccessibility.post(notification: .announcement, argument: announcement)
+        // Auto-start the hold since we're coming from final breath sequence
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            startHolding()
         }
     }
     
