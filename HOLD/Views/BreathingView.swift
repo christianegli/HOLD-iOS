@@ -15,6 +15,7 @@ struct BreathingView: View {
     @State private var showInstructions = true
     @State private var showFinalBreath = false
     @State private var finalBreathStage = 0 // 0: exhale, 1: belly, 2: ribs, 3: chest, 4: complete
+    @State private var finalBreathTimer: Timer?
     
     enum BreathingPhase: String, CaseIterable {
         case ready = "Ready"
@@ -528,19 +529,12 @@ struct BreathingView: View {
                         .frame(height: 40)
                 }
                 
-                if finalBreathStage < 4 {
-                    Button(action: advanceFinalBreathStage) {
-                        Text(finalBreathButtonText)
-                            .font(.holdHeading)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.holdTextPrimary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(finalBreathColor.opacity(0.8))
-                            .cornerRadius(16)
-                    }
-                    .accessibilityLabel(finalBreathButtonText)
-                    .accessibilityHint("Advance to next stage of final breath")
+                // Automatic progression - no button needed
+                if finalBreathStage == 4 {
+                    Text("Starting breath hold...")
+                        .font(.holdBody)
+                        .foregroundColor(.holdTextSecondary)
+                        .opacity(0.8)
                 }
             }
             .padding(.horizontal, 32)
@@ -571,15 +565,7 @@ struct BreathingView: View {
         }
     }
     
-    private var finalBreathButtonText: String {
-        switch finalBreathStage {
-        case 0: return "Exhaled"
-        case 1: return "Belly Full"
-        case 2: return "Ribs Expanded"
-        case 3: return "Chest Full - Start Hold"
-        default: return ""
-        }
-    }
+
     
     private var finalBreathColor: Color {
         switch finalBreathStage {
@@ -714,13 +700,16 @@ struct BreathingView: View {
         let notificationFeedback = UINotificationFeedbackGenerator()
         notificationFeedback.notificationOccurred(.success)
         
-        // Show final breath guidance instead of immediate navigation
+        // Show final breath guidance and start automatic sequence
         UIAccessibility.post(notification: .announcement, argument: "Breathing preparation complete. Now take your final breath.")
         
         withAnimation(.easeInOut(duration: 0.5)) {
             showFinalBreath = true
             finalBreathStage = 0
         }
+        
+        // Start automatic final breath sequence
+        startFinalBreathSequence()
     }
     
     private func togglePause() {
@@ -756,8 +745,20 @@ struct BreathingView: View {
     private func cleanup() {
         timer?.invalidate()
         timer = nil
+        finalBreathTimer?.invalidate()
+        finalBreathTimer = nil
         isActive = false
         isPaused = false
+    }
+    
+    private func startFinalBreathSequence() {
+        // Stage durations: exhale(3s), belly(4s), ribs(3s), chest(3s), complete(2s)
+        let stageDurations: [TimeInterval] = [3.0, 4.0, 3.0, 3.0, 2.0]
+        
+        finalBreathTimer?.invalidate()
+        finalBreathTimer = Timer.scheduledTimer(withTimeInterval: stageDurations[0], repeats: false) { _ in
+            self.advanceFinalBreathStage()
+        }
     }
     
     private func advanceFinalBreathStage() {
@@ -775,10 +776,18 @@ struct BreathingView: View {
         let announcement = finalBreathInstruction + ". " + finalBreathDescription
         UIAccessibility.post(notification: .announcement, argument: announcement)
         
-        // If we've completed all stages, start the hold
-        if finalBreathStage >= 4 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                startBreathHold()
+        // Schedule next stage or complete the sequence
+        if finalBreathStage < 4 {
+            let stageDurations: [TimeInterval] = [3.0, 4.0, 3.0, 3.0, 2.0]
+            finalBreathTimer?.invalidate()
+            finalBreathTimer = Timer.scheduledTimer(withTimeInterval: stageDurations[finalBreathStage], repeats: false) { _ in
+                self.advanceFinalBreathStage()
+            }
+        } else {
+            // Final stage - start breath hold
+            finalBreathTimer?.invalidate()
+            finalBreathTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { _ in
+                self.startBreathHold()
             }
         }
     }
