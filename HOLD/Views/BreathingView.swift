@@ -14,7 +14,7 @@ struct BreathingView: View {
     @State private var phaseProgress: Double = 0.0
     @State private var showInstructions = true
     @State private var showFinalBreath = false
-    @State private var finalBreathStage = 0 // 0: belly, 1: ribs, 2: chest, 3: hold starting
+    @State private var finalBreathStage = 0 // 0: inhale, 1: partial exhale, 2: hold starting
     @State private var finalBreathTimer: Timer?
     
     enum BreathingPhase: String, CaseIterable {
@@ -496,23 +496,37 @@ struct BreathingView: View {
                     .foregroundColor(.holdTextPrimary)
                     .multilineTextAlignment(.center)
                 
-                // Breathing circle for final breath
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [finalBreathColor.opacity(0.3), finalBreathColor]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                // Use same breathing circle as in main breathing rounds
+                ZStack {
+                    // Background circle
+                    Circle()
+                        .fill(Color.holdCard.opacity(0.3))
+                        .frame(width: 280, height: 280)
+                    
+                    // Main breathing circle
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                gradient: Gradient(colors: [
+                                    finalBreathColor.opacity(0.6),
+                                    finalBreathColor.opacity(0.2)
+                                ]),
+                                center: .center,
+                                startRadius: 20,
+                                endRadius: 140
+                            )
                         )
-                    )
-                    .frame(width: 200, height: 200)
-                    .scaleEffect(finalBreathScale)
-                    .overlay(
-                        Circle()
-                            .stroke(finalBreathColor, lineWidth: 3)
-                            .scaleEffect(finalBreathScale)
-                    )
-                    .shadow(color: finalBreathColor.opacity(0.5), radius: 20)
+                        .frame(width: 280, height: 280)
+                        .scaleEffect(finalBreathScale)
+                        .overlay(
+                            Circle()
+                                .stroke(finalBreathColor, lineWidth: 4)
+                                .frame(width: 280, height: 280)
+                                .scaleEffect(finalBreathScale)
+                        )
+                        .shadow(color: finalBreathColor.opacity(0.3), radius: 10)
+                        .animation(.easeInOut(duration: 1.0), value: finalBreathScale)
+                }
                 
                 VStack(spacing: 16) {
                     Text(finalBreathInstruction)
@@ -545,20 +559,18 @@ struct BreathingView: View {
     
     private var finalBreathInstruction: String {
         switch finalBreathStage {
-        case 0: return "Fill your belly"
-        case 1: return "Expand your ribs"
-        case 2: return "Fill your chest"
-        case 3: return "Hold your breath"
+        case 0: return "Take a deep breath"
+        case 1: return "Exhale halfway"
+        case 2: return "Hold your breath"
         default: return ""
         }
     }
     
     private var finalBreathDescription: String {
         switch finalBreathStage {
-        case 0: return "Breathe deep into your lower lungs"
-        case 1: return "Expand your rib cage outward"
-        case 2: return "Fill your upper chest and collarbones"
-        case 3: return "Breath hold has begun"
+        case 0: return "Fill your lungs completely"
+        case 1: return "Release 50% of the air"
+        case 2: return "Breath hold has begun"
         default: return ""
         }
     }
@@ -568,20 +580,18 @@ struct BreathingView: View {
     private var finalBreathColor: Color {
         switch finalBreathStage {
         case 0: return .holdSuccess
-        case 1: return .holdAccent
+        case 1: return .holdAccent  
         case 2: return .holdPrimary
-        case 3: return .holdPrimary
         default: return .holdTextSecondary
         }
     }
     
     private var finalBreathScale: CGFloat {
         switch finalBreathStage {
-        case 0: return 0.8  // Start smaller
-        case 1: return 1.2
-        case 2: return 1.6
-        case 3: return 1.6  // Hold at full size
-        default: return 0.8
+        case 0: return 1.6  // Full inhale
+        case 1: return 1.0  // 50% exhale
+        case 2: return 1.0  // Hold at 50%
+        default: return 1.0
         }
     }
     
@@ -748,8 +758,8 @@ struct BreathingView: View {
     }
     
     private func startFinalBreathSequence() {
-        // Stage durations: belly(4s), ribs(3s), chest(3s), transition to hold(1s)
-        let stageDurations: [TimeInterval] = [4.0, 3.0, 3.0, 1.0]
+        // Stage durations: inhale(3s), partial exhale(2s), transition to hold(1s)
+        let stageDurations: [TimeInterval] = [3.0, 2.0, 1.0]
         
         finalBreathTimer?.invalidate()
         finalBreathTimer = Timer.scheduledTimer(withTimeInterval: stageDurations[0], repeats: false) { _ in
@@ -773,8 +783,8 @@ struct BreathingView: View {
         UIAccessibility.post(notification: .announcement, argument: announcement)
         
         // Schedule next stage or transition to hold
-        if finalBreathStage < 3 {
-            let stageDurations: [TimeInterval] = [4.0, 3.0, 3.0, 1.0]
+        if finalBreathStage < 2 {
+            let stageDurations: [TimeInterval] = [3.0, 2.0, 1.0]
             finalBreathTimer?.invalidate()
             finalBreathTimer = Timer.scheduledTimer(withTimeInterval: stageDurations[finalBreathStage], repeats: false) { _ in
                 self.advanceFinalBreathStage()
