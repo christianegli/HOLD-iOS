@@ -4,6 +4,8 @@
         <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="holdDuration" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="preparationRounds" optional="YES" attributeType="Integer 16" defaultValueString="4" usesScalarValueType="YES"/>
+        <attribute name="protocolType" optional="YES" attributeType="String" defaultValueString="Box Breathing"/>
         <attribute name="startedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
 </model> 
