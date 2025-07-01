@@ -21,13 +21,15 @@ struct BreathingView: View {
         case hold1 = "Hold Full"
         case exhale = "Exhale"
         case hold2 = "Hold Empty"
-        case finalBreath = "Final Breath"
+        case finalInhale = "Final Inhale"
+        case finalExhale = "Final Exhale"
         
         var duration: TimeInterval {
             switch self {
             case .ready: return 3.0
             case .inhale, .hold1, .exhale, .hold2: return 4.0
-            case .finalBreath: return 6.0
+            case .finalInhale: return 4.0
+            case .finalExhale: return 2.0
             }
         }
         
@@ -38,7 +40,8 @@ struct BreathingView: View {
             case .hold1: return "Hold your breath"
             case .exhale: return "Breathe out slowly and completely"
             case .hold2: return "Hold empty"
-            case .finalBreath: return "Take deep breath, exhale 50%, then hold"
+            case .finalInhale: return "Take your final deep breath"
+            case .finalExhale: return "Exhale halfway and hold"
             }
         }
         
@@ -49,7 +52,8 @@ struct BreathingView: View {
             case .hold1: return .holdAccent
             case .exhale: return .holdSecondary
             case .hold2: return .holdWarning
-            case .finalBreath: return .holdPrimary
+            case .finalInhale: return .holdSuccess
+            case .finalExhale: return .holdSecondary
             }
         }
         
@@ -60,7 +64,8 @@ struct BreathingView: View {
             case .hold1: return 1.6
             case .exhale: return 0.8
             case .hold2: return 0.8
-            case .finalBreath: return 1.0
+            case .finalInhale: return 1.6
+            case .finalExhale: return 1.0
             }
         }
         
@@ -71,7 +76,8 @@ struct BreathingView: View {
             case .hold1: return "Hold your breath for 4 seconds"
             case .exhale: return "Now exhaling for 4 seconds"
             case .hold2: return "Hold empty for 4 seconds"
-            case .finalBreath: return "Final breath preparation for 6 seconds"
+            case .finalInhale: return "Take your final deep breath for 4 seconds"
+            case .finalExhale: return "Exhale halfway for 2 seconds then hold"
             }
         }
     }
@@ -572,12 +578,16 @@ struct BreathingView: View {
                 // Accessibility announcement for new round
                 UIAccessibility.post(notification: .announcement, argument: "Round \(currentRound) of \(totalRounds) starting")
             } else {
-                // All rounds complete – proceed to final breath
-                currentPhase = .finalBreath
+                // All rounds complete – proceed to final inhale
+                currentPhase = .finalInhale
                 UIAccessibility.post(notification: .announcement, argument: "Final breath preparation")
             }
             
-        case .finalBreath:
+        case .finalInhale:
+            // Move to final exhale
+            currentPhase = .finalExhale
+            
+        case .finalExhale:
             // Final breath complete – proceed to breath hold
             completeBreathing()
             return
