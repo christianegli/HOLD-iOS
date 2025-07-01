@@ -10,6 +10,9 @@ struct BreathingView: View {
     @State private var isActive = false
     @State private var isPaused = false
     @State private var circleScale: CGFloat = 1.0
+    @State private var breathingGlow: Double = 0.0
+    @State private var phaseProgress: Double = 0.0
+    @State private var showInstructions = true
     
     enum BreathingPhase: String, CaseIterable {
         case ready = "Ready"
@@ -38,6 +41,28 @@ struct BreathingView: View {
             }
         }
         
+        var color: Color {
+            switch self {
+            case .ready: return .holdTextSecondary
+            case .inhale: return .holdSuccess
+            case .hold1: return .holdAccent
+            case .exhale: return .holdSecondary
+            case .hold2: return .holdWarning
+            case .complete: return .holdPrimary
+            }
+        }
+        
+        var targetScale: CGFloat {
+            switch self {
+            case .ready: return 1.0
+            case .inhale: return 1.6
+            case .hold1: return 1.6
+            case .exhale: return 0.8
+            case .hold2: return 0.8
+            case .complete: return 1.0
+            }
+        }
+        
         var accessibilityAnnouncement: String {
             switch self {
             case .ready: return "Get ready to start breathing exercise"
@@ -45,203 +70,60 @@ struct BreathingView: View {
             case .hold1: return "Hold your breath for 4 seconds"
             case .exhale: return "Now exhaling for 4 seconds"
             case .hold2: return "Hold empty for 4 seconds"
-            case .complete: return "Round \(self) finished"
+            case .complete: return "Round complete"
             }
         }
     }
     
     var body: some View {
-        VStack(spacing: 30) {
-            // Header with accessibility
-            VStack(spacing: 12) {
-                Text("Box Breathing")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .dynamicTypeSize(.large...DynamicTypeSize.accessibility2)
-                    .accessibilityAddTraits(.isHeader)
-                    .accessibilityLabel("Box Breathing Exercise")
-                
-                Text("4-4-4-4 Preparation")
-                    .font(.title3)
-                    .foregroundColor(.secondary)
-                    .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
-                    .accessibilityLabel("Four counts inhale, four counts hold, four counts exhale, four counts hold")
-                
-                // Progress indicator
-                HStack {
-                    Text("Round \(currentRound) of \(totalRounds)")
-                        .font(.headline)
-                        .foregroundColor(.cyan)
-                        .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
-                        .accessibilityLabel("Currently on round \(currentRound) of \(totalRounds) total rounds")
-                    
-                    Spacer()
-                    
-                    // Progress dots
-                    HStack(spacing: 8) {
-                        ForEach(1...totalRounds, id: \.self) { round in
-                            Circle()
-                                .fill(round <= currentRound ? Color.cyan : Color.gray.opacity(0.3))
-                                .frame(width: 8, height: 8)
-                                .accessibilityHidden(true) // Redundant with round text
-                        }
-                    }
-                }
-                .padding(.horizontal)
+        ZStack {
+            // Instructions overlay
+            if showInstructions && !isActive {
+                instructionsOverlay
+                    .transition(.opacity.combined(with: .scale))
+                    .zIndex(1)
             }
             
-            Spacer()
-            
-            // Breathing Circle with accessibility
-            ZStack {
-                // Background circle
-                Circle()
-                    .fill(Color.cyan.opacity(0.1))
-                    .frame(width: 280, height: 280)
-                
-                // Animated breathing circle
-                Circle()
-                    .stroke(
-                        LinearGradient(
-                            gradient: Gradient(colors: [.cyan, .blue]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 6
-                    )
-                    .frame(width: 200, height: 200)
-                    .scaleEffect(circleScale)
-                    .animation(.easeInOut(duration: currentPhase.duration), value: circleScale)
-                
-                // Center content
+            // Main breathing interface
+            VStack(spacing: 32) {
+                // Enhanced header
                 VStack(spacing: 16) {
-                    // Phase indicator
-                    Text(currentPhase.rawValue.uppercased())
-                        .font(.title)
+                    Text("Box Breathing")
+                        .font(.holdTitle)
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
-                        .accessibilityLabel("Current phase: \(currentPhase.rawValue)")
-                    
-                    // Timer display
-                    Text(String(format: "%.0f", max(0, timeRemaining)))
-                        .font(.system(size: 48, weight: .bold, design: .monospaced))
-                        .foregroundColor(.cyan)
+                        .foregroundColor(.holdTextPrimary)
                         .dynamicTypeSize(.large...DynamicTypeSize.accessibility2)
-                        .accessibilityLabel("Time remaining: \(String(format: "%.0f seconds", max(0, timeRemaining)))")
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityLabel("Box Breathing Exercise")
                     
-                    // Instruction text
-                    Text(currentPhase.instruction)
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
+                    Text("4-4-4-4 Preparation")
+                        .font(.holdBody)
+                        .foregroundColor(.holdTextSecondary)
                         .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
-                        .accessibilityLabel(currentPhase.instruction)
+                        .accessibilityLabel("Four counts inhale, four counts hold, four counts exhale, four counts hold")
+                    
+                    // Enhanced progress indicator
+                    progressIndicator
                 }
+                .padding(.top, 20)
+                
+                Spacer()
+                
+                // Enhanced breathing circle
+                breathingCircle
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Breathing guide circle showing \(currentPhase.rawValue) phase with \(String(format: "%.0f", max(0, timeRemaining))) seconds remaining")
+                    .accessibilityValue("\(currentPhase.instruction)")
+                
+                Spacer()
+                
+                // Enhanced control buttons
+                controlButtons
+                
+                Spacer(minLength: 30)
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Breathing guide circle showing \(currentPhase.rawValue) phase with \(String(format: "%.0f", max(0, timeRemaining))) seconds remaining")
-            .accessibilityValue("\(currentPhase.instruction)")
-            
-            Spacer()
-            
-            // Control buttons with enhanced accessibility
-            VStack(spacing: 16) {
-                if !isActive {
-                    Button(action: startBreathing) {
-                        HStack {
-                            Image(systemName: "play.fill")
-                                .font(.title3)
-                                .accessibilityHidden(true)
-                            Text("Start Breathing")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                                .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 30)
-                        .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [.green, .mint]),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .cornerRadius(25)
-                    }
-                    .accessibilityLabel("Start breathing exercise")
-                    .accessibilityHint("Begins the 4-round box breathing preparation")
-                    .accessibilityAddTraits(.isButton)
-                } else {
-                    HStack(spacing: 20) {
-                        Button(action: togglePause) {
-                            HStack {
-                                Image(systemName: isPaused ? "play.fill" : "pause.fill")
-                                    .font(.title3)
-                                    .accessibilityHidden(true)
-                                Text(isPaused ? "Resume" : "Pause")
-                                    .font(.headline)
-                                    .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(Color.orange)
-                            .cornerRadius(20)
-                        }
-                        .accessibilityLabel(isPaused ? "Resume breathing exercise" : "Pause breathing exercise")
-                        .accessibilityHint(isPaused ? "Continues the breathing exercise" : "Pauses the breathing exercise")
-                        .accessibilityAddTraits(.isButton)
-                        
-                        Button(action: skipToHold) {
-                            HStack {
-                                Image(systemName: "forward.fill")
-                                    .font(.title3)
-                                    .accessibilityHidden(true)
-                                Text("Skip to Hold")
-                                    .font(.headline)
-                                    .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(Color.cyan)
-                            .cornerRadius(20)
-                        }
-                        .accessibilityLabel("Skip to breath hold")
-                        .accessibilityHint("Skip remaining breathing rounds and go directly to breath holding")
-                        .accessibilityAddTraits(.isButton)
-                    }
-                }
-            }
-            
-            // Emergency stop button for accessibility
-            if isActive {
-                Button(action: stopBreathing) {
-                    HStack {
-                        Image(systemName: "stop.fill")
-                            .font(.title3)
-                            .accessibilityHidden(true)
-                        Text("Stop")
-                            .font(.headline)
-                            .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(Color.red.opacity(0.8))
-                    .cornerRadius(15)
-                }
-                .accessibilityLabel("Stop breathing exercise")
-                .accessibilityHint("Immediately stops the breathing exercise and returns to home")
-                .accessibilityAddTraits(.isButton)
-            }
-            
-            Spacer(minLength: 20)
+            .padding(.horizontal, 24)
         }
-        .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationBarBackButtonHidden(true)
         .onAppear {
@@ -272,6 +154,330 @@ struct BreathingView: View {
         }
     }
     
+    // MARK: - Instructions Overlay
+    
+    private var instructionsOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.8)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 24) {
+                Text("🫁")
+                    .font(.system(size: 60))
+                
+                Text("Box Breathing Guide")
+                    .font(.holdTitle)
+                    .fontWeight(.bold)
+                    .foregroundColor(.holdTextPrimary)
+                    .multilineTextAlignment(.center)
+                
+                VStack(spacing: 16) {
+                    instructionStep(phase: "Inhale", duration: "4 seconds", description: "Breathe in slowly", color: .holdSuccess)
+                    instructionStep(phase: "Hold", duration: "4 seconds", description: "Hold your breath", color: .holdAccent)
+                    instructionStep(phase: "Exhale", duration: "4 seconds", description: "Breathe out slowly", color: .holdSecondary)
+                    instructionStep(phase: "Hold", duration: "4 seconds", description: "Hold empty", color: .holdWarning)
+                }
+                .padding()
+                .background(.holdCard.opacity(0.6))
+                .cornerRadius(16)
+                
+                Text("You'll complete 4 rounds to prepare for the breath hold")
+                    .font(.holdCaption)
+                    .foregroundColor(.holdTextSecondary)
+                    .multilineTextAlignment(.center)
+                
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.5)) {
+                        showInstructions = false
+                    }
+                }) {
+                    Text("Got it!")
+                        .font(.holdHeading)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.holdTextPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [.holdPrimary, .holdSecondary]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(16)
+                }
+                .accessibilityLabel("Dismiss instructions and start breathing")
+            }
+            .padding(32)
+        }
+    }
+    
+    private func instructionStep(phase: String, duration: String, description: String, color: Color) -> some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(color.opacity(0.3))
+                .frame(width: 12, height: 12)
+                .overlay(
+                    Circle()
+                        .stroke(color, lineWidth: 2)
+                )
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(phase)
+                    .font(.holdCaption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(color)
+                
+                Text(description)
+                    .font(.caption2)
+                    .foregroundColor(.holdTextSecondary)
+            }
+            
+            Spacer()
+            
+            Text(duration)
+                .font(.holdCaption)
+                .foregroundColor(.holdTextTertiary)
+        }
+    }
+    
+    // MARK: - Progress Indicator
+    
+    private var progressIndicator: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("Round \(currentRound) of \(totalRounds)")
+                    .font(.holdHeading)
+                    .foregroundColor(.holdPrimary)
+                    .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
+                    .accessibilityLabel("Currently on round \(currentRound) of \(totalRounds) total rounds")
+                
+                Spacer()
+                
+                if isActive {
+                    Text(currentPhase.rawValue.uppercased())
+                        .font(.holdCaption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(currentPhase.color)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(currentPhase.color.opacity(0.2))
+                        .cornerRadius(8)
+                }
+            }
+            
+            // Progress bar
+            HStack(spacing: 8) {
+                ForEach(1...totalRounds, id: \.self) { round in
+                    Rectangle()
+                        .fill(round < currentRound ? .holdSuccess : 
+                              round == currentRound ? .holdPrimary : .holdTextTertiary.opacity(0.3))
+                        .frame(height: 4)
+                        .cornerRadius(2)
+                        .animation(.easeInOut(duration: 0.3), value: currentRound)
+                }
+            }
+            .accessibilityHidden(true) // Redundant with round text
+        }
+        .padding(.horizontal, 4)
+    }
+    
+    // MARK: - Breathing Circle
+    
+    private var breathingCircle: some View {
+        ZStack {
+            // Outer glow rings
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .stroke(
+                        currentPhase.color.opacity(0.3 - Double(index) * 0.1),
+                        lineWidth: 2
+                    )
+                    .frame(width: 320 + CGFloat(index) * 40, height: 320 + CGFloat(index) * 40)
+                    .scaleEffect(circleScale * (1.0 + Double(index) * 0.1))
+                    .opacity(breathingGlow * (1.0 - Double(index) * 0.3))
+                    .animation(.easeInOut(duration: currentPhase.duration), value: circleScale)
+            }
+            
+            // Main breathing circle
+            ZStack {
+                // Background circle
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                currentPhase.color.opacity(0.2),
+                                currentPhase.color.opacity(0.05),
+                                .clear
+                            ]),
+                            center: .center,
+                            startRadius: 50,
+                            endRadius: 150
+                        )
+                    )
+                    .frame(width: 300, height: 300)
+                    .scaleEffect(circleScale)
+                    .animation(.easeInOut(duration: currentPhase.duration), value: circleScale)
+                
+                // Breathing guide circle
+                Circle()
+                    .stroke(
+                        LinearGradient(
+                            gradient: Gradient(stops: [
+                                .init(color: currentPhase.color, location: 0.0),
+                                .init(color: currentPhase.color.opacity(0.8), location: 0.5),
+                                .init(color: currentPhase.color, location: 1.0)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 8
+                    )
+                    .frame(width: 240, height: 240)
+                    .scaleEffect(circleScale)
+                    .animation(.easeInOut(duration: currentPhase.duration), value: circleScale)
+                
+                // Progress ring
+                Circle()
+                    .trim(from: 0, to: phaseProgress)
+                    .stroke(
+                        currentPhase.color.opacity(0.8),
+                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                    )
+                    .frame(width: 260, height: 260)
+                    .rotationEffect(.degrees(-90))
+                    .scaleEffect(circleScale)
+                    .animation(.linear(duration: 0.1), value: phaseProgress)
+                
+                // Center content
+                VStack(spacing: 16) {
+                    // Phase indicator
+                    Text(currentPhase.rawValue.uppercased())
+                        .font(.holdTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(currentPhase.color)
+                        .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
+                        .accessibilityLabel("Current phase: \(currentPhase.rawValue)")
+                    
+                    // Timer display
+                    Text(String(format: "%.0f", max(0, timeRemaining)))
+                        .font(.system(size: 56, weight: .bold, design: .monospaced))
+                        .foregroundColor(.holdTextPrimary)
+                        .dynamicTypeSize(.large...DynamicTypeSize.accessibility2)
+                        .accessibilityLabel("Time remaining: \(String(format: "%.0f seconds", max(0, timeRemaining)))")
+                    
+                    // Instruction text
+                    Text(currentPhase.instruction)
+                        .font(.holdCaption)
+                        .foregroundColor(.holdTextSecondary)
+                        .multilineTextAlignment(.center)
+                        .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
+                        .accessibilityLabel(currentPhase.instruction)
+                }
+            }
+        }
+        .frame(width: 360, height: 360)
+    }
+    
+    // MARK: - Control Buttons
+    
+    private var controlButtons: some View {
+        VStack(spacing: 16) {
+            if !isActive {
+                Button(action: startBreathing) {
+                    HStack {
+                        Image(systemName: "play.fill")
+                            .font(.title3)
+                            .accessibilityHidden(true)
+                        Text("Start Breathing")
+                            .font(.holdHeading)
+                            .fontWeight(.semibold)
+                            .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
+                    }
+                    .foregroundColor(.holdTextPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            gradient: Gradient(colors: [.holdSuccess, .holdSuccess.opacity(0.8)]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(16)
+                }
+                .accessibilityLabel("Start breathing exercise")
+                .accessibilityHint("Begins the 4-round box breathing preparation")
+                .accessibilityAddTraits(.isButton)
+            } else {
+                HStack(spacing: 16) {
+                    Button(action: togglePause) {
+                        HStack {
+                            Image(systemName: isPaused ? "play.fill" : "pause.fill")
+                                .font(.title3)
+                                .accessibilityHidden(true)
+                            Text(isPaused ? "Resume" : "Pause")
+                                .font(.holdBody)
+                                .fontWeight(.semibold)
+                                .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
+                        }
+                        .foregroundColor(.holdTextPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(.holdWarning.opacity(0.8))
+                        .cornerRadius(12)
+                    }
+                    .accessibilityLabel(isPaused ? "Resume breathing exercise" : "Pause breathing exercise")
+                    .accessibilityHint(isPaused ? "Continues the breathing exercise" : "Pauses the breathing exercise")
+                    .accessibilityAddTraits(.isButton)
+                    
+                    Button(action: skipToHold) {
+                        HStack {
+                            Image(systemName: "forward.fill")
+                                .font(.title3)
+                                .accessibilityHidden(true)
+                            Text("Skip to Hold")
+                                .font(.holdBody)
+                                .fontWeight(.semibold)
+                                .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
+                        }
+                        .foregroundColor(.holdTextPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(.holdPrimary.opacity(0.8))
+                        .cornerRadius(12)
+                    }
+                    .accessibilityLabel("Skip to breath hold")
+                    .accessibilityHint("Skip remaining breathing rounds and go directly to breath holding")
+                    .accessibilityAddTraits(.isButton)
+                }
+            }
+            
+            // Emergency stop button
+            if isActive {
+                Button(action: stopBreathing) {
+                    HStack {
+                        Image(systemName: "stop.fill")
+                            .font(.title3)
+                            .accessibilityHidden(true)
+                        Text("Stop")
+                            .font(.holdCaption)
+                            .fontWeight(.semibold)
+                            .dynamicTypeSize(.medium...DynamicTypeSize.accessibility1)
+                    }
+                    .foregroundColor(.holdTextPrimary)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                    .background(.holdError.opacity(0.8))
+                    .cornerRadius(12)
+                }
+                .accessibilityLabel("Stop breathing exercise")
+                .accessibilityHint("Immediately stops the breathing exercise and returns to home")
+                .accessibilityAddTraits(.isButton)
+            }
+        }
+    }
+    
     // MARK: - Breathing Exercise Logic
     
     private func setupBreathingExercise() {
@@ -281,6 +487,8 @@ struct BreathingView: View {
         isActive = false
         isPaused = false
         circleScale = 1.0
+        breathingGlow = 0.3
+        phaseProgress = 0.0
     }
     
     private func startBreathing() {
@@ -307,10 +515,25 @@ struct BreathingView: View {
             if !isPaused {
                 timeRemaining -= 0.1
                 
+                // Update progress
+                let totalDuration = currentPhase.duration
+                phaseProgress = 1.0 - (timeRemaining / totalDuration)
+                
+                // Update visual effects
+                updateVisualEffects()
+                
                 if timeRemaining <= 0 {
                     advancePhase()
                 }
             }
+        }
+    }
+    
+    private func updateVisualEffects() {
+        // Update breathing glow based on phase
+        let glowIntensity = currentPhase == .inhale || currentPhase == .exhale ? 0.8 : 0.4
+        withAnimation(.easeInOut(duration: 0.3)) {
+            breathingGlow = glowIntensity
         }
     }
     
@@ -322,14 +545,12 @@ struct BreathingView: View {
         switch currentPhase {
         case .ready:
             currentPhase = .inhale
-            circleScale = 1.4
             
         case .inhale:
             currentPhase = .hold1
             
         case .hold1:
             currentPhase = .exhale
-            circleScale = 1.0
             
         case .exhale:
             currentPhase = .hold2
@@ -341,7 +562,6 @@ struct BreathingView: View {
             if currentRound < totalRounds {
                 currentRound += 1
                 currentPhase = .inhale
-                circleScale = 1.4
                 
                 // Accessibility announcement for new round
                 UIAccessibility.post(notification: .announcement, argument: "Round \(currentRound) of \(totalRounds) starting")
@@ -352,7 +572,13 @@ struct BreathingView: View {
             }
         }
         
+        // Update circle scale and reset timer
+        withAnimation(.easeInOut(duration: currentPhase.duration)) {
+            circleScale = currentPhase.targetScale
+        }
+        
         timeRemaining = currentPhase.duration
+        phaseProgress = 0.0
         
         // Live accessibility announcements
         UIAccessibility.post(notification: .announcement, argument: currentPhase.accessibilityAnnouncement)
